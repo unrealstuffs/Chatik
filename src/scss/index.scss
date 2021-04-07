@@ -473,6 +473,10 @@ ul {
         }
     }
 
+    small .btn-link {
+        cursor: pointer;
+    }
+
     @media (max-width: 830px) {
         .centered-container-form {
             max-width: 480px;
