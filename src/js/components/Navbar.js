@@ -1,8 +1,13 @@
 import React from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useHistory } from "react-router-dom";
+import { logout } from "../actions/auth";
 
 export default function Navbar() {
     const history = useHistory();
+
+    const dispatch = useDispatch();
+    const user = useSelector(({ auth }) => auth.user);
 
     return (
         <div className="chat-navbar">
@@ -22,8 +27,6 @@ export default function Navbar() {
                     </Link>
                 </div>
                 <div className="chat-navbar-inner-right">
-                    <span className="logged-in-user">Hi User</span>
-
                     <Link
                         to="/"
                         onClick={() => {}}
@@ -31,6 +34,15 @@ export default function Navbar() {
                     >
                         Login
                     </Link>
+                    <span className="logged-in-user">Hi User</span>
+                    {user && (
+                        <button
+                            onClick={() => dispatch(logout())}
+                            className="btn btn-outline-danger ml-2"
+                        >
+                            Logout
+                        </button>
+                    )}
                 </div>
             </nav>
         </div>
