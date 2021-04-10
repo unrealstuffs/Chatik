@@ -16,7 +16,6 @@ export const createChat = (chat) =>
 export const joinChat = async (userId, chatId) => {
     const userRef = db.doc(`profiles/${userId}`);
     const chatRef = db.doc(`chats/${chatId}`);
-
     await userRef.update({
         joinedChats: firebase.firestore.FieldValue.arrayUnion(chatRef),
     });
@@ -39,3 +38,18 @@ export const subscribeToProfile = (uid, onSubsribe) =>
         .collection("profiles")
         .doc(uid)
         .onSnapshot((snapshot) => onSubsribe(snapshot.data()));
+
+export const sendChatMessage = (message, chatId) =>
+    db
+        .collection("chats")
+        .doc(chatId)
+        .collection("messages")
+        .doc(message.timestamp)
+        .set(message);
+
+export const subscribeToMessages = (chatId, onSubsribe) => {
+    db.collection("chats")
+        .doc(chatId)
+        .collection("messages")
+        .onSnapshot((snapshot) => onSubsribe(snapshot.docChanges()));
+};

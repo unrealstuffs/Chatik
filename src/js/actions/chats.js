@@ -5,11 +5,9 @@ export const fetchChats = () => async (dispatch, getState) => {
     const { user } = getState().auth;
     dispatch({ type: "CHATS_FETCH_INIT" });
     const chats = await api.fetchChats();
-
     chats.forEach(
         (chat) => (chat.joinedUsers = chat.joinedUsers.map((user) => user.id))
     );
-
     const sortedChats = chats.reduce(
         (accuChats, chat) => {
             accuChats[
@@ -19,12 +17,10 @@ export const fetchChats = () => async (dispatch, getState) => {
         },
         { joined: [], available: [] }
     );
-
     dispatch({
         type: "CHATS_FETCH_SUCCESS",
         ...sortedChats,
     });
-
     return sortedChats;
 };
 
@@ -36,7 +32,6 @@ export const joinChat = (chat, uid) => (dispatch) =>
 export const createChat = (formData, userId) => async (dispatch) => {
     const newChat = { ...formData };
     newChat.admin = db.doc(`profiles/${userId}`);
-
     const chatId = await api.createChat(newChat);
     dispatch({ type: "CHATS_CREATE_SUCCESS" });
     await api.joinChat(userId, chatId);
@@ -60,3 +55,26 @@ export const subscribeToProfile = (uid, chatId) => (dispatch) =>
     api.subscribeToProfile(uid, (user) => {
         dispatch({ type: "CHATS_UPDATE_USER_STATE", user, chatId });
     });
+
+export const sendChatMessage = (message, chatId) => (dispatch, getState) => {
+    const newMessage = { ...message };
+    const { user } = getState().auth;
+    const userRef = db.doc(`profiles/${user.uid}`);
+    newMessage.author = userRef;
+
+    return api
+        .sendChatMessage(newMessage, chatId)
+        .then((_) => dispatch({ type: "CHATS_MESSAGE_SENT" }));
+};
+
+export const subscribeToMessages = (chatId) => (dispatch) => {
+    return api.subscribeToMessages(chatId, (changes) => {
+        const messages = changes.map((change) => {
+            if (change.type === "added") {
+                return { id: change.doc.id, ...change.doc.data() };
+            }
+        });
+
+        return dispatch({ type: "CHATS_SET_MESSAGES", messages, chatId });
+    });
+};
