@@ -5,6 +5,7 @@ export const fetchChats = () => async (dispatch, getState) => {
     const { user } = getState().auth;
     dispatch({ type: "CHATS_FETCH_INIT" });
     const chats = await api.fetchChats();
+
     chats.forEach(
         (chat) => (chat.joinedUsers = chat.joinedUsers.map((user) => user.id))
     );
@@ -17,10 +18,12 @@ export const fetchChats = () => async (dispatch, getState) => {
         },
         { joined: [], available: [] }
     );
+
     dispatch({
         type: "CHATS_FETCH_SUCCESS",
         ...sortedChats,
     });
+
     return sortedChats;
 };
 
@@ -32,6 +35,7 @@ export const joinChat = (chat, uid) => (dispatch) =>
 export const createChat = (formData, userId) => async (dispatch) => {
     const newChat = { ...formData };
     newChat.admin = db.doc(`profiles/${userId}`);
+
     const chatId = await api.createChat(newChat);
     dispatch({ type: "CHATS_CREATE_SUCCESS" });
     await api.joinChat(userId, chatId);
@@ -47,6 +51,7 @@ export const subscribeToChat = (chatId) => (dispatch) =>
                 return userSnapshot.data();
             })
         );
+
         chat.joinedUsers = joinedUsers;
         dispatch({ type: "CHATS_SET_ACTIVE_CHAT", chat });
     });
@@ -68,13 +73,38 @@ export const sendChatMessage = (message, chatId) => (dispatch, getState) => {
 };
 
 export const subscribeToMessages = (chatId) => (dispatch) => {
-    return api.subscribeToMessages(chatId, (changes) => {
+    return api.subscribeToMessages(chatId, async (changes) => {
         const messages = changes.map((change) => {
             if (change.type === "added") {
                 return { id: change.doc.id, ...change.doc.data() };
             }
         });
 
-        return dispatch({ type: "CHATS_SET_MESSAGES", messages, chatId });
+        const messagesWithAuthor = [];
+        const cache = {};
+
+        for await (let message of messages) {
+            if (cache[message.author.id]) {
+                message.author = cache[message.author.id];
+            } else {
+                const userSnapshot = await message.author.get();
+                cache[userSnapshot.id] = userSnapshot.data();
+                message.author = cache[userSnapshot.id];
+            }
+
+            messagesWithAuthor.push(message);
+        }
+
+        return dispatch({
+            type: "CHATS_SET_MESSAGES",
+            messages: messagesWithAuthor,
+            chatId,
+        });
     });
 };
+
+export const registerMessageSubscription = (chatId, messageSub) => ({
+    type: "CHATS_REGISTER_MESSAGE_SUB",
+    sub: messageSub,
+    chatId,
+});

@@ -14,19 +14,27 @@ import {
     subscribeToProfile,
     sendChatMessage,
     subscribeToMessages,
+    registerMessageSubscription,
 } from "../actions/chats";
 
 function Chat() {
     const { id } = useParams();
     const peopleWatchers = useRef({});
+    const messageList = useRef();
     const dispatch = useDispatch();
     const activeChat = useSelector(({ chats }) => chats.activeChats[id]);
     const messages = useSelector(({ chats }) => chats.messages[id]);
+    const messagesSub = useSelector(({ chats }) => chats.messagesSubs[id]);
     const joinedUsers = activeChat?.joinedUsers;
 
     useEffect(() => {
         const unsubFromChat = dispatch(subscribeToChat(id));
-        dispatch(subscribeToMessages(id));
+
+        if (!messagesSub) {
+            const unsubFromMessages = dispatch(subscribeToMessages(id));
+            dispatch(registerMessageSubscription(id, unsubFromMessages));
+        }
+
         return () => {
             unsubFromChat();
             unsubFromJoinedUsers();
@@ -52,7 +60,9 @@ function Chat() {
 
     const sendMessage = useCallback(
         (message) => {
-            dispatch(sendChatMessage(message, id));
+            dispatch(sendChatMessage(message, id)).then((_) =>
+                messageList.current.scrollIntoView(false)
+            );
         },
         [id]
     );
@@ -73,8 +83,8 @@ function Chat() {
                 <ChatUserList users={activeChat?.joinedUsers} />
             </div>
             <div className="col-9 fh">
-                <ViewTitle text={`Channel ${activeChat?.name}`} />
-                <ChatMessagesList messages={messages} />
+                <ViewTitle text={`Channel: ${activeChat?.name}`} />
+                <ChatMessagesList innerRef={messageList} messages={messages} />
                 <Messenger onSubmit={sendMessage} />
             </div>
         </div>
